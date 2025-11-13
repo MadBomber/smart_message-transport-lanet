@@ -33,8 +33,8 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "smart_message", "~> 0.1"
-  spec.add_dependency "lanet", "~> 0.1"
+  spec.add_dependency "smart_message"
+  spec.add_dependency "lanet"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

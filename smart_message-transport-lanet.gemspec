@@ -4,17 +4,17 @@ require_relative "lib/smart_message/transport/lanet/version"
 
 Gem::Specification.new do |spec|
   spec.name = "smart_message-transport-lanet"
-  spec.version = SmartMessage::Transport::Lanet::VERSION
+  spec.version = SmartMessage::Transport::LanetVersion::VERSION
   spec.authors = ["Dewayne VanHoozer"]
   spec.email = ["dewayne@vanhoozer.me"]
 
-  spec.summary = "TODO: Write a short summary, because RubyGems requires one."
-  spec.description = "TODO: Write a longer description or delete this line."
+  spec.summary = "LAN-based peer-to-peer transport for SmartMessage using Lanet"
+  spec.description = "A SmartMessage transport adapter that enables peer-to-peer message communication over local area networks using the Lanet library. Provides automatic node discovery, heartbeat monitoring, and capability-based message routing."
   spec.homepage = "https://github.com/MadBomber/smart_message-transport-lanet"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
-  spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/MadBomber/smart_message-transport-lanet"
     spec.metadata["changelog_uri"] = "https://github.com/MadBomber/smart_message-transport-lanet/blob/main/CHANGELOG.md"
@@ -32,8 +32,9 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Uncomment to register a new dependency of your gem
-  # spec.add_dependency "example-gem", "~> 1.0"
+  # Runtime dependencies
+  spec.add_dependency "smart_message", "~> 0.1"
+  spec.add_dependency "lanet", "~> 0.1"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

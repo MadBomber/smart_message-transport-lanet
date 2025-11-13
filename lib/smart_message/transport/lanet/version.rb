@@ -2,7 +2,7 @@
 
 module SmartMessage
   module Transport
-    module Lanet
+    module LanetVersion
       VERSION = "0.0.1"
     end
   end

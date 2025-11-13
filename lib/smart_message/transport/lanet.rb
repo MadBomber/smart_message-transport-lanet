@@ -1,14 +1,31 @@
 # frozen_string_literal: true
 
 require_relative "lanet/version"
-require 'smart_message/transport/base'
-require 'lanet'
+require 'logger'
+require 'json'
+require 'socket'
+
+# Conditionally require dependencies if not already loaded (useful for testing)
+begin
+  require 'smart_message/transport/base' unless defined?(SmartMessage::Transport::Base)
+rescue LoadError
+  # Will be mocked in test environment
+end
+
+begin
+  require 'lanet' unless defined?(Lanet)
+rescue LoadError
+  # Will be mocked in test environment
+end
 
 module SmartMessage
   module Transport
+    # Lanet transport adapter for peer-to-peer messaging over LAN
     class Lanet < Base
+      VERSION = LanetVersion::VERSION
+
       class Error < StandardError; end
-      
+
       DEFAULT_CONFIG = {
         port: ENV['LANET_PORT']&.to_i || 9999,
         broadcast_port: ENV['LANET_BROADCAST_PORT']&.to_i || 9998,
@@ -23,10 +40,12 @@ module SmartMessage
         network_interface: ENV['LANET_NETWORK_INTERFACE'] # Optional specific interface
       }.freeze
 
-      attr_reader :sender, :receiver, :discovered_nodes, :node_registry
+      attr_reader :sender, :receiver, :discovered_nodes, :node_registry, :logger, :options
 
       def initialize(**options)
-        super(**options)
+        super(**options) if defined?(super)
+        @options ||= default_options.merge(options)
+        @logger ||= @options[:logger] || Logger.new($stdout)
         @discovered_nodes = {}
         @node_registry = {}
         @message_handlers = {}

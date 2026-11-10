@@ -9,7 +9,6 @@ require "minitest/autorun"
 require "logger"
 require "json"
 require "socket"
-require "ostruct"
 
 # Mock SmartMessage::Transport::Base if not available
 unless defined?(SmartMessage::Transport::Base)

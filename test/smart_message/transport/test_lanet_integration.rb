@@ -53,7 +53,7 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
     handler = ->(msg) { puts msg }
 
     # Mock dispatcher
-    mock_dispatcher = OpenStruct.new(subscribers: Hash.new { |h, k| h[k] = [] })
+    mock_dispatcher = Struct.new(:subscribers).new(Hash.new { |h, k| h[k] = [] })
     transport.instance_variable_set(:@dispatcher, mock_dispatcher)
 
     # Subscribe

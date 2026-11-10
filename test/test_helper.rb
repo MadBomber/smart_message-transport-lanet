@@ -6,6 +6,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "smart_message/transport/lanet/version"
 
 require "minitest/autorun"
+require "minitest/mock"
 require "logger"
 require "json"
 require "socket"

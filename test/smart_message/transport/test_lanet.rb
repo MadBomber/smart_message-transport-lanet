@@ -294,6 +294,22 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     transport.send(:handle_incoming_message, message, sender_info)
   end
 
+  def test_connect_after_disconnect_reconnects
+    @transport.connect
+    @transport.disconnect
+    @transport.connect
+
+    assert @transport.connected?
+  end
+
+  def test_configure_after_disconnect_clears_shutdown
+    @transport.connect
+    @transport.disconnect
+    @transport.configure
+
+    assert @transport.connected?
+  end
+
   private
 
   def create_transport(**options)

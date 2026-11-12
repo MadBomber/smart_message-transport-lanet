@@ -55,6 +55,7 @@ module SmartMessage
       end
 
       def configure
+        @shutdown = false
         setup_lanet_components
         start_discovery_service
         start_heartbeat_service

@@ -20,9 +20,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Rubies the committed Gemfile.lock installs: breaker_machines 0.7.0 needs >= 3.3,
-        # unicode-emoji 4.1.0 needs < 4.0.
-        ruby: ['3.3', '3.4']
+        # Rubies the committed Gemfile.lock installs. Only the lock (not the Gemfile) holds
+        # breaker_machines at 0.17.0 (0.18.0+ needs >= 4.0), and the lock lists only the ruby
+        # platform because 0.17.0's precompiled builds need >= 3.4. Keep both when relocking.
+        ruby: ['3.3', '3.4', '4.0']
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1

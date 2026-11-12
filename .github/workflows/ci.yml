@@ -20,8 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Rubies the committed Gemfile.lock installs: breaker_machines 0.17.0 needs >= 3.3
-        # (0.18.0 and later need >= 4.0, so keep it at 0.17.0 while 3.3 is listed).
+        # Rubies the committed Gemfile.lock installs. breaker_machines is held at 0.17.0
+        # (0.18.0+ needs >= 4.0) and the lock lists only the ruby platform: 0.17.0's
+        # precompiled builds need >= 3.4, its plain ruby build needs >= 3.3.
         ruby: ['3.3', '3.4', '4.0']
     steps:
       - uses: actions/checkout@v7

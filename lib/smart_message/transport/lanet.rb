@@ -80,18 +80,14 @@ module SmartMessage
 
       def subscribe(message_class, process_method, filter_options = {})
         super(message_class, process_method, filter_options)
-        
-        # Register message handler if not already registered
-        unless @message_handlers[message_class]
-          register_message_handler(message_class)
-        end
+        register_message_handler(message_class)
       end
 
       def unsubscribe(message_class, process_method)
         super(message_class, process_method)
         
         # Remove message handler if no more subscribers
-        if @dispatcher.subscribers[message_class].empty?
+        if @dispatcher.subscribers[message_class.to_s].empty?
           unregister_message_handler(message_class)
         end
       end
@@ -224,7 +220,7 @@ module SmartMessage
         heartbeat_data = {
           node_id: @options[:node_id],
           timestamp: Time.now.to_f,
-          message_types: @message_handlers.keys.map(&:to_s),
+          message_types: @message_handlers.keys,
           smart_message_version: SmartMessage::VERSION
         }
         
@@ -305,12 +301,15 @@ module SmartMessage
       end
 
       def register_message_handler(message_class)
-        @message_handlers[message_class] = true
+        key = message_class.to_s
+        return if @message_handlers[key]
+
+        @message_handlers[key] = true
         logger.debug { "[Lanet] Registered handler for #{message_class}" }
       end
 
       def unregister_message_handler(message_class)
-        @message_handlers.delete(message_class)
+        @message_handlers.delete(message_class.to_s)
         logger.debug { "[Lanet] Unregistered handler for #{message_class}" }
       end
 

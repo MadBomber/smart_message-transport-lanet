@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "stringio"
 
 class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
   def setup
@@ -52,14 +53,57 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
     transport = create_transport
     handler = ->(msg) { puts msg }
 
-    # Mock dispatcher
-    mock_dispatcher = Struct.new(:subscribers).new(Hash.new { |h, k| h[k] = [] })
-    transport.instance_variable_set(:@dispatcher, mock_dispatcher)
+    stub_dispatcher(transport)
 
     # Subscribe
     transport.subscribe("TestMessage", handler)
     handlers = transport.instance_variable_get(:@message_handlers)
     assert handlers.key?("TestMessage")
+  end
+
+  ChatMessage = Class.new
+
+  def test_class_keyed_subscribe_receives_inbound_message
+    transport = create_transport
+    transport.subscribe(ChatMessage, "ChatMessage.process")
+
+    received = []
+    transport.define_singleton_method(:receive) do |msg_class, payload|
+      received << [msg_class, payload]
+    end
+
+    message = { type: "smart_message", message_class: ChatMessage.to_s, payload: "{}" }
+    transport.send(:handle_incoming_message, message, {})
+
+    assert_equal [[ChatMessage.to_s, "{}"]], received
+  end
+
+  def test_repeat_subscribe_registers_handler_once
+    log = StringIO.new
+    transport = create_transport(logger: Logger.new(log, level: :debug))
+
+    transport.subscribe(ChatMessage, "ChatMessage.process")
+    transport.subscribe(ChatMessage.to_s, "Other.process")
+
+    assert_equal 1, log.string.scan("Registered handler").size
+    assert_equal [ChatMessage.to_s], transport.instance_variable_get(:@message_handlers).keys
+  end
+
+  def test_class_keyed_unsubscribe_keeps_handler_while_subscribers_remain
+    transport, subscribers = class_subscribed_transport
+    subscribers[ChatMessage.to_s] << { process_method: "Other.process" }
+
+    transport.unsubscribe(ChatMessage, "ChatMessage.process")
+
+    assert transport.instance_variable_get(:@message_handlers).key?(ChatMessage.to_s)
+  end
+
+  def test_class_keyed_unsubscribe_removes_handler_after_last_subscriber
+    transport, = class_subscribed_transport
+
+    transport.unsubscribe(ChatMessage, "ChatMessage.process")
+
+    assert_empty transport.instance_variable_get(:@message_handlers)
   end
 
   def test_handle_smart_message_with_no_subscribers
@@ -375,6 +419,21 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
   end
 
   private
+
+  # Stand-in for SmartMessage::Dispatcher, which keys subscribers by
+  # class-name String. Returns the subscribers hash.
+  def stub_dispatcher(transport)
+    subscribers = Hash.new { |h, k| h[k] = [] }
+    transport.instance_variable_set(:@dispatcher, Struct.new(:subscribers).new(subscribers))
+    subscribers
+  end
+
+  def class_subscribed_transport
+    transport = create_transport
+    subscribers = stub_dispatcher(transport)
+    transport.subscribe(ChatMessage, "ChatMessage.process")
+    [transport, subscribers]
+  end
 
   def create_transport(**options)
     SmartMessage::Transport::Lanet.allocate.tap do |transport|

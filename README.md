@@ -294,7 +294,7 @@ The transport handles errors gracefully:
 
 ## Logging
 
-Configure logging through the SmartMessage logger:
+By default the transport logs through `SmartMessage::Logger.default`, so it follows `SmartMessage.configure`. Pass `logger:` to use a different logger:
 
 ```ruby
 transport = SmartMessage::Transport::Lanet.new(

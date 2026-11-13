@@ -6,6 +6,12 @@
 - Added GitHub Actions CI running `rake test`
 - Relocked dev dependencies so `bundle install` works on Ruby 4, and CI now also runs on Ruby 4.0
 - `Lanet.new` sets up its state before `Base#initialize` calls `configure`, so construction no longer hides setup errors behind `NoMethodError` or orphans the discovery/heartbeat threads; `configure`/`connect` no longer start a second set of services when already connected. (#3)
+- Node discovery, stale-node cleanup, heartbeat handling and the node readers now share a mutex, so discovery no longer drops nodes when cleanup runs at the same time. `discovered_nodes` and `node_registry` return snapshots. (#18)
+- Without a `logger:` option the transport now uses `SmartMessage::Logger.default` instead of raising `NoMethodError` on `SmartMessage::Logger.new`. (#14)
+- `unsubscribe!` now also unregisters the Lanet handler, so the message type is no longer advertised in heartbeats or delivered to `receive`. (#17)
+- A blank numeric `LANET_*` environment variable now falls back to the default instead of becoming zero. (#10)
+- Declared `logger` as a runtime dependency; it is a bundled gem, not a default gem, on Ruby 4. (#11)
+- An inbound `smart_message` with no payload is now ignored instead of passing the envelope's `inspect` string to `receive`. (#15)
 
 ## [0.0.1] - 2025-09-03
 

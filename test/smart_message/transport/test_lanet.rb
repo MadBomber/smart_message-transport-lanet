@@ -62,6 +62,26 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     refute_nil config[:node_id]
   end
 
+  def test_env_number_uses_default_for_missing_or_blank_value
+    with_env("LANET_TEST_NUMBER" => nil) do
+      assert_equal 30.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+    end
+
+    ["", "  "].each do |blank|
+      with_env("LANET_TEST_NUMBER" => blank) do
+        assert_equal 30.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+        assert_equal 9999, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 9999, :to_i)
+      end
+    end
+  end
+
+  def test_env_number_converts_set_value
+    with_env("LANET_TEST_NUMBER" => "12") do
+      assert_equal 12.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+      assert_equal 12, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 9999, :to_i)
+    end
+  end
+
   def test_configure_initializes_lanet_components
     transport = create_transport
     mock_sender = Minitest::Mock.new
@@ -311,6 +331,14 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
   end
 
   private
+
+  def with_env(vars)
+    saved = vars.keys.to_h { |key| [key, ENV[key]] }
+    vars.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    saved.each { |key, value| ENV[key] = value }
+  end
 
   def create_transport(**options)
     # Create a basic transport without connecting to avoid needing actual Lanet gems

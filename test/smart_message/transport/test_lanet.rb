@@ -96,6 +96,8 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
         assert transport.receiver
       end
     end
+  ensure
+    transport&.disconnect
   end
 
   def test_connected_status_when_not_connected

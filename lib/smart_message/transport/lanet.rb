@@ -359,7 +359,7 @@ module SmartMessage
 
       def handle_smart_message(message, sender_info)
         message_class = message[:message_class] || message['message_class']
-        payload = message[:payload] || message['payload'] || message.to_s
+        payload = message[:payload] || message['payload']
         
         return unless message_class && payload
         

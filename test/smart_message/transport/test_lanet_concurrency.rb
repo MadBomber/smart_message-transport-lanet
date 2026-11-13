@@ -36,7 +36,7 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
     threads.each(&:join)
 
     assert_empty errors, "Expected no errors, got: #{errors}"
-    assert_operator transport.discovered_nodes.count, :>=, 1
+    assert_equal 10, transport.discovered_nodes.count
   end
 
   def test_concurrent_heartbeat_handling
@@ -70,7 +70,7 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
     threads.each(&:join)
 
     assert_empty errors
-    assert_operator transport.node_registry.count, :>=, 1
+    assert_equal 20, transport.node_registry.count
   end
 
   def test_concurrent_message_handler_registration
@@ -94,7 +94,7 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
 
     assert_empty errors
     handlers = transport.instance_variable_get(:@message_handlers)
-    assert_operator handlers.count, :>=, 1
+    assert_equal 5, handlers.count
   end
 
   def test_concurrent_target_determination
@@ -355,7 +355,8 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
     threads.each(&:join)
 
     assert_empty errors
-    assert_operator read_results.count, :>, 0
+    assert_equal 100, read_results.count
+    assert_equal 51, transport.discovered_nodes.count
   end
 
   def test_stress_test_rapid_heartbeats

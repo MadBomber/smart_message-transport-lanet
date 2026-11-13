@@ -120,6 +120,14 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
     assert_empty transport.instance_variable_get(:@message_handlers)
   end
 
+  def test_unsubscribe_bang_unregisters_handler
+    transport, = class_subscribed_transport
+
+    transport.unsubscribe!(ChatMessage)
+
+    assert_empty transport.network_topology[:active_subscriptions]
+  end
+
   def test_handle_smart_message_with_no_subscribers
     transport = create_transport
 

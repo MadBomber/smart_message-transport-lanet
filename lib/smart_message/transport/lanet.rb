@@ -26,15 +26,23 @@ module SmartMessage
 
       class Error < StandardError; end
 
+      # Reads a numeric ENV value, treating a missing or blank value as unset.
+      def self.env_number(key, default, converter = :to_f)
+        value = ENV[key]
+        return default if value.nil? || value.strip.empty?
+
+        value.public_send(converter)
+      end
+
       DEFAULT_CONFIG = {
-        port: ENV['LANET_PORT']&.to_i || 9999,
-        broadcast_port: ENV['LANET_BROADCAST_PORT']&.to_i || 9998,
+        port: env_number('LANET_PORT', 9999, :to_i),
+        broadcast_port: env_number('LANET_BROADCAST_PORT', 9998, :to_i),
         encryption_key: ENV['LANET_ENCRYPTION_KEY'],
         signing_key: ENV['LANET_SIGNING_KEY'],
-        discovery_timeout: ENV['LANET_DISCOVERY_TIMEOUT']&.to_f || 5.0,
-        connection_timeout: ENV['LANET_CONNECTION_TIMEOUT']&.to_f || 10.0,
-        heartbeat_interval: ENV['LANET_HEARTBEAT_INTERVAL']&.to_f || 30.0,
-        max_message_size: ENV['LANET_MAX_MESSAGE_SIZE']&.to_i || 1048576, # 1MB
+        discovery_timeout: env_number('LANET_DISCOVERY_TIMEOUT', 5.0),
+        connection_timeout: env_number('LANET_CONNECTION_TIMEOUT', 10.0),
+        heartbeat_interval: env_number('LANET_HEARTBEAT_INTERVAL', 30.0),
+        max_message_size: env_number('LANET_MAX_MESSAGE_SIZE', 1048576, :to_i), # 1MB
         enable_compression: ENV['LANET_ENABLE_COMPRESSION'] == 'true',
         node_id: ENV['LANET_NODE_ID'] || Socket.gethostname,
         network_interface: ENV['LANET_NETWORK_INTERFACE'] # Optional specific interface
@@ -356,7 +364,7 @@ module SmartMessage
 
       def handle_smart_message(message, sender_info)
         message_class = message[:message_class] || message['message_class']
-        payload = message[:payload] || message['payload'] || message.to_s
+        payload = message[:payload] || message['payload']
         
         return unless message_class && payload
         

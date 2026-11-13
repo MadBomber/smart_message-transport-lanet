@@ -3,6 +3,7 @@ PATH
   specs:
     smart_message-transport-lanet (0.0.1)
       lanet
+      logger
       smart_message
 
 GEM

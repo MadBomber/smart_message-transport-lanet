@@ -78,6 +78,20 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
     assert_equal [[ChatMessage.to_s, "{}"]], received
   end
 
+  def test_smart_message_without_payload_is_not_received
+    transport, = class_subscribed_transport
+
+    received = []
+    transport.define_singleton_method(:receive) do |msg_class, payload|
+      received << [msg_class, payload]
+    end
+
+    message = { type: "smart_message", message_class: ChatMessage.to_s }
+    transport.send(:handle_incoming_message, message, { ip: "192.168.1.100" })
+
+    assert_empty received
+  end
+
   def test_repeat_subscribe_registers_handler_once
     log = StringIO.new
     transport = create_transport(logger: Logger.new(log, level: :debug))

@@ -34,19 +34,26 @@ module SmartMessage
         value.public_send(converter)
       end
 
-      DEFAULT_CONFIG = {
-        port: env_number('LANET_PORT', 9999, :to_i),
-        broadcast_port: env_number('LANET_BROADCAST_PORT', 9998, :to_i),
-        encryption_key: ENV['LANET_ENCRYPTION_KEY'],
-        signing_key: ENV['LANET_SIGNING_KEY'],
-        discovery_timeout: env_number('LANET_DISCOVERY_TIMEOUT', 5.0),
-        connection_timeout: env_number('LANET_CONNECTION_TIMEOUT', 10.0),
-        heartbeat_interval: env_number('LANET_HEARTBEAT_INTERVAL', 30.0),
-        max_message_size: env_number('LANET_MAX_MESSAGE_SIZE', 1048576, :to_i), # 1MB
-        enable_compression: ENV['LANET_ENABLE_COMPRESSION'] == 'true',
-        node_id: ENV['LANET_NODE_ID'] || Socket.gethostname,
-        network_interface: ENV['LANET_NETWORK_INTERFACE'] # Optional specific interface
-      }.freeze
+      # Defaults built from the current LANET_* environment variables, read on each call.
+      def self.env_config
+        {
+          port: env_number('LANET_PORT', 9999, :to_i),
+          broadcast_port: env_number('LANET_BROADCAST_PORT', 9998, :to_i),
+          encryption_key: ENV['LANET_ENCRYPTION_KEY'],
+          signing_key: ENV['LANET_SIGNING_KEY'],
+          discovery_timeout: env_number('LANET_DISCOVERY_TIMEOUT', 5.0),
+          connection_timeout: env_number('LANET_CONNECTION_TIMEOUT', 10.0),
+          heartbeat_interval: env_number('LANET_HEARTBEAT_INTERVAL', 30.0),
+          max_message_size: env_number('LANET_MAX_MESSAGE_SIZE', 1048576, :to_i), # 1MB
+          enable_compression: ENV['LANET_ENABLE_COMPRESSION'] == 'true',
+          node_id: ENV['LANET_NODE_ID'] || Socket.gethostname,
+          network_interface: ENV['LANET_NETWORK_INTERFACE'] # Optional specific interface
+        }
+      end
+
+      # Snapshot of env_config taken when the gem loaded; kept for compatibility.
+      # Transports use env_config, so LANET_* values set after require still apply.
+      DEFAULT_CONFIG = env_config.freeze
 
       attr_reader :sender, :receiver, :logger, :options
 
@@ -77,7 +84,7 @@ module SmartMessage
       end
 
       def default_options
-        DEFAULT_CONFIG
+        self.class.env_config
       end
 
       def do_publish(message_class, serialized_message)

@@ -12,6 +12,7 @@
 - A blank numeric `LANET_*` environment variable now falls back to the default instead of becoming zero. (#10)
 - Declared `logger` as a runtime dependency; it is a bundled gem, not a default gem, on Ruby 4. (#11)
 - An inbound `smart_message` with no payload is now ignored instead of passing the envelope's `inspect` string to `receive`. (#15)
+- `LANET_*` environment variables are now read when each transport is created, so values set after `require` (e.g. by `Dotenv.load`) are no longer ignored. New `Lanet.env_config`; `DEFAULT_CONFIG` stays as a load-time snapshot. (#34)
 
 ## [0.0.1] - 2025-09-03
 

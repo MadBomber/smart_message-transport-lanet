@@ -116,6 +116,8 @@ export LANET_ENCRYPTION_KEY=my-secret-key
 export LANET_HEARTBEAT_INTERVAL=30.0
 ```
 
+The variables are read each time a transport is created, so values set after the gem is required (for example by `Dotenv.load`) still apply. Options passed to `new` override them.
+
 ### Targeted Messaging
 
 Send messages to specific nodes by setting the message's `to` address:

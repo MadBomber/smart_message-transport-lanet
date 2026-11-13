@@ -329,6 +329,7 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
       transport.instance_variable_set(:@logger, merged_options[:logger])
       transport.instance_variable_set(:@discovered_nodes, {})
       transport.instance_variable_set(:@node_registry, {})
+      transport.instance_variable_set(:@nodes_mutex, Mutex.new)
       transport.instance_variable_set(:@message_handlers, {})
       transport.instance_variable_set(:@shutdown, false)
     end

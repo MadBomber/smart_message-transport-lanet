@@ -5,6 +5,7 @@
 - Tests no longer require ostruct (gone from Ruby 4 default gems) and require minitest/mock explicitly instead of relying on minitest 5 autorun to load it.
 - Added GitHub Actions CI running `rake test`
 - Relocked dev dependencies so `bundle install` works on Ruby 4, and CI now also runs on Ruby 4.0
+- Node discovery, stale-node cleanup, heartbeat handling and the node readers now share a mutex, so discovery no longer drops nodes when cleanup runs at the same time. `discovered_nodes` and `node_registry` return snapshots. (#18)
 
 ## [0.0.1] - 2025-09-03
 

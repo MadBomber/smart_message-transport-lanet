@@ -341,7 +341,10 @@ module SmartMessage
           end
         end
         
-        logger.debug { "[Lanet] Published #{message_class} to #{published_count}/#{target_nodes.size} nodes" }
+        summary = "#{message_class} to #{published_count}/#{target_nodes.size} nodes"
+        raise Error, "Failed to publish #{summary}" if published_count.zero? && target_nodes.any?
+
+        logger.debug { "[Lanet] Published #{summary}" }
       end
 
       def register_message_handler(message_class)

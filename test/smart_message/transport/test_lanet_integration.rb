@@ -49,6 +49,30 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
     assert_equal 2, send_count
   end
 
+  def test_publish_to_nodes_raises_when_every_send_fails
+    transport = create_transport
+    failing_sender = Object.new
+    failing_sender.define_singleton_method(:send_to_node) { |*, **| raise IOError, "unreachable" }
+    transport.instance_variable_set(:@sender, failing_sender)
+
+    error = assert_raises(SmartMessage::Transport::Lanet::Error) do
+      transport.send(:publish_to_nodes, ["node1", "node2"], "TestMessage", "{}")
+    end
+    assert_match(%r{0/2 nodes}, error.message)
+  end
+
+  def test_do_publish_raises_when_every_send_fails
+    transport = create_transport
+    transport.instance_variable_set(:@discovered_nodes, { "node1" => { ip: "192.168.1.10", port: 9999 } })
+    failing_sender = Object.new
+    failing_sender.define_singleton_method(:send_to_node) { |*, **| raise IOError, "unreachable" }
+    transport.instance_variable_set(:@sender, failing_sender)
+
+    assert_raises(SmartMessage::Transport::Lanet::Error) do
+      transport.send(:do_publish, "TestMessage", { test: "data" }.to_json)
+    end
+  end
+
   def test_subscribe_registers_handler
     transport = create_transport
     handler = ->(msg) { puts msg }

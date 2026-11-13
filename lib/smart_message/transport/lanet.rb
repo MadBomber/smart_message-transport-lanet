@@ -42,19 +42,24 @@ module SmartMessage
 
       attr_reader :sender, :receiver, :discovered_nodes, :node_registry, :logger, :options
 
+      # State is set up before super because SmartMessage::Transport::Base#initialize calls configure.
       def initialize(**options)
-        super(**options) if defined?(super)
-        @options ||= default_options.merge(options)
-        @logger ||= @options[:logger] || Logger.new($stdout)
+        @options = default_options.merge(options)
+        @logger = @options[:logger] || Logger.new($stdout)
         @discovered_nodes = {}
         @node_registry = {}
         @message_handlers = {}
         @discovery_thread = nil
         @heartbeat_thread = nil
         @shutdown = false
+        super(**options)
       end
 
+      # Starts the Lanet services. Does nothing if they are already running.
       def configure
+        return if connected?
+
+        stop_services
         @shutdown = false
         setup_lanet_components
         start_discovery_service
@@ -104,15 +109,8 @@ module SmartMessage
 
       def disconnect
         @shutdown = true
-        
-        # Stop threads
-        @discovery_thread&.kill
-        @heartbeat_thread&.kill
-        
-        # Cleanup Lanet components
-        @sender&.close if @sender.respond_to?(:close)
-        @receiver&.close if @receiver.respond_to?(:close)
-        
+        stop_services
+
         @discovered_nodes.clear
         @node_registry.clear
         
@@ -135,6 +133,18 @@ module SmartMessage
       end
 
       private
+
+      def stop_services
+        @discovery_thread&.kill
+        @heartbeat_thread&.kill
+        @discovery_thread = nil
+        @heartbeat_thread = nil
+
+        @sender.close if @sender.respond_to?(:close)
+        @receiver.close if @receiver.respond_to?(:close)
+        @sender = nil
+        @receiver = nil
+      end
 
       def setup_lanet_components
         lanet_config = {

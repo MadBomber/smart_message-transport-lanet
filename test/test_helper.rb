@@ -20,9 +20,14 @@ unless defined?(SmartMessage::Transport::Base)
       class Base
         attr_reader :options, :logger
 
+        # Like smart_message's Base, configure runs inside initialize
         def initialize(**options)
           @options = default_options.merge(options)
-          @logger = @options[:logger] || Logger.new($stdout)
+          configure
+        end
+
+        def configure
+          # Mock implementation for testing
         end
 
         def default_options

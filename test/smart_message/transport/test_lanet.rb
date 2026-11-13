@@ -294,6 +294,50 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     transport.send(:handle_incoming_message, message, sender_info)
   end
 
+  def test_new_starts_services_and_keeps_thread_handles
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+
+    assert transport.connected?
+    assert transport.instance_variable_get(:@heartbeat_thread)&.alive?
+  ensure
+    transport&.disconnect
+  end
+
+  def test_connect_when_connected_does_not_start_more_services
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+    discovery = transport.instance_variable_get(:@discovery_thread)
+    heartbeat = transport.instance_variable_get(:@heartbeat_thread)
+    sender = transport.sender
+
+    transport.connect
+
+    assert_same discovery, transport.instance_variable_get(:@discovery_thread)
+    assert_same heartbeat, transport.instance_variable_get(:@heartbeat_thread)
+    assert_same sender, transport.sender
+  ensure
+    transport&.disconnect
+  end
+
+  def test_disconnect_stops_threads_started_by_new
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+    threads = transport.instance_variable_get(:@discovery_thread), transport.instance_variable_get(:@heartbeat_thread)
+
+    transport.disconnect
+    threads.each(&:join)
+
+    refute transport.connected?
+    threads.each { |thread| refute thread.alive? }
+  end
+
+  def test_new_reports_lanet_setup_errors
+    ::Lanet::Sender.stub :new, ->(*) { raise "no network" } do
+      error = assert_raises(SmartMessage::Transport::Lanet::Error) do
+        SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+      end
+      assert_match(/no network/, error.message)
+    end
+  end
+
   def test_connect_after_disconnect_reconnects
     @transport.connect
     @transport.disconnect

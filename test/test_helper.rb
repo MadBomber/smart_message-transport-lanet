@@ -37,6 +37,10 @@ unless defined?(SmartMessage::Transport::Base)
           # Mock implementation for testing
         end
 
+        def unsubscribe!(message_class)
+          # Mock implementation for testing
+        end
+
         def receive(message_class, payload)
           # Mock implementation for testing
         end

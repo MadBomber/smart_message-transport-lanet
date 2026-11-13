@@ -93,6 +93,11 @@ module SmartMessage
         end
       end
 
+      def unsubscribe!(message_class)
+        super(message_class)
+        unregister_message_handler(message_class)
+      end
+
       def connected?
         !@shutdown && @sender && @receiver && @discovery_thread&.alive?
       end

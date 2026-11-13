@@ -6,6 +6,7 @@
 - Added GitHub Actions CI running `rake test`
 - Relocked dev dependencies so `bundle install` works on Ruby 4, and CI now also runs on Ruby 4.0
 - Declared `logger` as a runtime dependency; it is a bundled gem, not a default gem, on Ruby 4. (#11)
+- An inbound `smart_message` with no payload is now ignored instead of passing the envelope's `inspect` string to `receive`. (#15)
 
 ## [0.0.1] - 2025-09-03
 

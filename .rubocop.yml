@@ -9,5 +9,7 @@ Style/StringLiterals:
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 
+# The todo cannot express the empty-brace style, so it lives here and
+# survives `rubocop --auto-gen-config` regeneration.
 Layout/SpaceInsideBlockBraces:
   EnforcedStyleForEmptyBraces: space

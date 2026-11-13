@@ -13,6 +13,7 @@
 - Declared `logger` as a runtime dependency; it is a bundled gem, not a default gem, on Ruby 4. (#11)
 - An inbound `smart_message` with no payload is now ignored instead of passing the envelope's `inspect` string to `receive`. (#15)
 - `publish` now raises `SmartMessage::Transport::Lanet::Error` when there are target nodes and the send to every one of them fails, instead of reporting success. Zero nodes and partial failures still do not raise. (#33)
+- `disconnect` now waits (up to 1 second each) for the discovery and heartbeat threads to finish, so they are no longer running when it returns. (#30)
 
 ## [0.0.1] - 2025-09-03
 

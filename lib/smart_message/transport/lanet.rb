@@ -161,9 +161,12 @@ module SmartMessage
 
       private
 
+      # Seconds to wait for a killed service thread to finish.
+      THREAD_JOIN_TIMEOUT = 1
+
       def stop_services
-        @discovery_thread&.kill
-        @heartbeat_thread&.kill
+        stop_thread(@discovery_thread)
+        stop_thread(@heartbeat_thread)
         @discovery_thread = nil
         @heartbeat_thread = nil
 
@@ -171,6 +174,15 @@ module SmartMessage
         @receiver.close if @receiver.respond_to?(:close)
         @sender = nil
         @receiver = nil
+      end
+
+      # Kills the thread and waits (bounded) for it to finish, so it is dead on return.
+      def stop_thread(thread)
+        return if thread.nil?
+
+        thread.kill
+        thread.join(THREAD_JOIN_TIMEOUT)
+        nil
       end
 
       def setup_lanet_components

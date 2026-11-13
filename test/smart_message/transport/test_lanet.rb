@@ -88,6 +88,34 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     end
   end
 
+  def test_env_set_after_require_is_used_by_new_transport
+    with_env("LANET_PORT" => "12345", "LANET_NODE_ID" => "from-env", "LANET_HEARTBEAT_INTERVAL" => "7.5") do
+      transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+
+      assert_equal 12_345, transport.options[:port]
+      assert_equal "from-env", transport.options[:node_id]
+      assert_in_delta 7.5, transport.options[:heartbeat_interval]
+    ensure
+      transport&.disconnect
+    end
+  end
+
+  def test_env_config_reads_env_on_each_call
+    with_env("LANET_PORT" => "2001", "LANET_ENABLE_COMPRESSION" => "true") do
+      config = SmartMessage::Transport::Lanet.env_config
+
+      assert_equal 2001, config[:port]
+      assert config[:enable_compression]
+    end
+
+    with_env("LANET_PORT" => nil, "LANET_NODE_ID" => nil) do
+      config = SmartMessage::Transport::Lanet.env_config
+
+      assert_equal 9999, config[:port]
+      assert_equal Socket.gethostname, config[:node_id]
+    end
+  end
+
   def test_configure_initializes_lanet_components
     transport = create_transport
     mock_sender = Minitest::Mock.new

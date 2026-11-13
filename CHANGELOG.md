@@ -5,6 +5,7 @@
 - Tests no longer require ostruct (gone from Ruby 4 default gems) and require minitest/mock explicitly instead of relying on minitest 5 autorun to load it.
 - Added GitHub Actions CI running `rake test`
 - Relocked dev dependencies so `bundle install` works on Ruby 4, and CI now also runs on Ruby 4.0
+- Without a `logger:` option the transport now uses `SmartMessage::Logger.default` instead of raising `NoMethodError` on `SmartMessage::Logger.new`. (#14)
 - `unsubscribe!` now also unregisters the Lanet handler, so the message type is no longer advertised in heartbeats or delivered to `receive`. (#17)
 - A blank numeric `LANET_*` environment variable now falls back to the default instead of becoming zero. (#10)
 - Declared `logger` as a runtime dependency; it is a bundled gem, not a default gem, on Ruby 4. (#11)

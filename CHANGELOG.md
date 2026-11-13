@@ -12,6 +12,7 @@
 - A blank numeric `LANET_*` environment variable now falls back to the default instead of becoming zero. (#10)
 - Declared `logger` as a runtime dependency; it is a bundled gem, not a default gem, on Ruby 4. (#11)
 - An inbound `smart_message` with no payload is now ignored instead of passing the envelope's `inspect` string to `receive`. (#15)
+- `disconnect` now waits (up to 1 second each) for the discovery and heartbeat threads to finish, so they are no longer running when it returns. (#30)
 
 ## [0.0.1] - 2025-09-03
 

@@ -357,6 +357,27 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     threads.each { |thread| refute thread.alive? }
   end
 
+  def test_disconnect_returns_after_threads_have_stopped
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+    threads = transport.instance_variable_get(:@discovery_thread), transport.instance_variable_get(:@heartbeat_thread)
+
+    transport.disconnect
+
+    threads.each { |thread| refute thread.alive? }
+  end
+
+  def test_stop_thread_kills_and_waits_for_thread
+    thread = Thread.new { sleep }
+
+    @transport.send(:stop_thread, thread)
+
+    refute thread.alive?
+  end
+
+  def test_stop_thread_ignores_nil
+    assert_nil @transport.send(:stop_thread, nil)
+  end
+
   def test_new_reports_lanet_setup_errors
     ::Lanet::Sender.stub :new, ->(*) { raise "no network" } do
       error = assert_raises(SmartMessage::Transport::Lanet::Error) do

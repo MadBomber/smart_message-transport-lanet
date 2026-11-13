@@ -27,6 +27,12 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     assert_equal({}, transport.node_registry)
   end
 
+  def test_initialization_without_logger_uses_smart_message_default_logger
+    transport = SmartMessage::Transport::Lanet.new(node_id: "test-node")
+
+    assert_same SmartMessage::Logger.default, transport.logger
+  end
+
   def test_initialization_with_custom_options
     transport = create_transport(
       port: 8888,

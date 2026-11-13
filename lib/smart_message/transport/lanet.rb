@@ -45,7 +45,7 @@ module SmartMessage
       def initialize(**options)
         super(**options) if defined?(super)
         @options ||= default_options.merge(options)
-        @logger ||= @options[:logger] || Logger.new($stdout)
+        @logger ||= @options[:logger] || SmartMessage::Logger.default
         @discovered_nodes = {}
         @node_registry = {}
         @message_handlers = {}

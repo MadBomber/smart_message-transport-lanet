@@ -27,6 +27,12 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     assert_equal({}, transport.node_registry)
   end
 
+  def test_initialization_without_logger_uses_smart_message_default_logger
+    transport = SmartMessage::Transport::Lanet.new(node_id: "test-node")
+
+    assert_same SmartMessage::Logger.default, transport.logger
+  end
+
   def test_initialization_with_custom_options
     transport = create_transport(
       port: 8888,
@@ -62,6 +68,26 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     refute_nil config[:node_id]
   end
 
+  def test_env_number_uses_default_for_missing_or_blank_value
+    with_env("LANET_TEST_NUMBER" => nil) do
+      assert_equal 30.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+    end
+
+    ["", "  "].each do |blank|
+      with_env("LANET_TEST_NUMBER" => blank) do
+        assert_equal 30.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+        assert_equal 9999, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 9999, :to_i)
+      end
+    end
+  end
+
+  def test_env_number_converts_set_value
+    with_env("LANET_TEST_NUMBER" => "12") do
+      assert_equal 12.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+      assert_equal 12, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 9999, :to_i)
+    end
+  end
+
   def test_configure_initializes_lanet_components
     transport = create_transport
     mock_sender = Minitest::Mock.new
@@ -76,6 +102,8 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
         assert transport.receiver
       end
     end
+  ensure
+    transport&.disconnect
   end
 
   def test_connected_status_when_not_connected
@@ -311,6 +339,14 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
   end
 
   private
+
+  def with_env(vars)
+    saved = vars.keys.to_h { |key| [key, ENV[key]] }
+    vars.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    saved.each { |key, value| ENV[key] = value }
+  end
 
   def create_transport(**options)
     # Create a basic transport without connecting to avoid needing actual Lanet gems

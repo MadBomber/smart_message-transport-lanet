@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   # Runtime dependencies
   spec.add_dependency "smart_message"
   spec.add_dependency "lanet"
+  spec.add_dependency "logger"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

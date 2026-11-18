@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "A SmartMessage transport adapter that enables peer-to-peer message communication over local area networks using the Lanet library. Provides automatic node discovery, heartbeat monitoring, and capability-based message routing."
   spec.homepage = "https://github.com/MadBomber/smart_message-transport-lanet"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.2.0"
+  spec.required_ruby_version = ">= 4.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["source_code_uri"] = spec.homepage

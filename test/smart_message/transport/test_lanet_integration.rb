@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "stringio"
 
 class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
   def setup
@@ -48,18 +49,107 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
     assert_equal 2, send_count
   end
 
+  def test_publish_to_nodes_raises_when_every_send_fails
+    transport = create_transport
+    failing_sender = Object.new
+    failing_sender.define_singleton_method(:send_to_node) { |*, **| raise IOError, "unreachable" }
+    transport.instance_variable_set(:@sender, failing_sender)
+
+    error = assert_raises(SmartMessage::Transport::Lanet::Error) do
+      transport.send(:publish_to_nodes, ["node1", "node2"], "TestMessage", "{}")
+    end
+    assert_match(%r{0/2 nodes}, error.message)
+  end
+
+  def test_do_publish_raises_when_every_send_fails
+    transport = create_transport
+    transport.instance_variable_set(:@discovered_nodes, { "node1" => { ip: "192.168.1.10", port: 9999 } })
+    failing_sender = Object.new
+    failing_sender.define_singleton_method(:send_to_node) { |*, **| raise IOError, "unreachable" }
+    transport.instance_variable_set(:@sender, failing_sender)
+
+    assert_raises(SmartMessage::Transport::Lanet::Error) do
+      transport.send(:do_publish, "TestMessage", { test: "data" }.to_json)
+    end
+  end
+
   def test_subscribe_registers_handler
     transport = create_transport
     handler = ->(msg) { puts msg }
 
-    # Mock dispatcher
-    mock_dispatcher = OpenStruct.new(subscribers: Hash.new { |h, k| h[k] = [] })
-    transport.instance_variable_set(:@dispatcher, mock_dispatcher)
+    stub_dispatcher(transport)
 
     # Subscribe
     transport.subscribe("TestMessage", handler)
     handlers = transport.instance_variable_get(:@message_handlers)
     assert handlers.key?("TestMessage")
+  end
+
+  ChatMessage = Class.new
+
+  def test_class_keyed_subscribe_receives_inbound_message
+    transport = create_transport
+    transport.subscribe(ChatMessage, "ChatMessage.process")
+
+    received = []
+    transport.define_singleton_method(:receive) do |msg_class, payload|
+      received << [msg_class, payload]
+    end
+
+    message = { type: "smart_message", message_class: ChatMessage.to_s, payload: "{}" }
+    transport.send(:handle_incoming_message, message, {})
+
+    assert_equal [[ChatMessage.to_s, "{}"]], received
+  end
+
+  def test_smart_message_without_payload_is_not_received
+    transport, = class_subscribed_transport
+
+    received = []
+    transport.define_singleton_method(:receive) do |msg_class, payload|
+      received << [msg_class, payload]
+    end
+
+    message = { type: "smart_message", message_class: ChatMessage.to_s }
+    transport.send(:handle_incoming_message, message, { ip: "192.168.1.100" })
+
+    assert_empty received
+  end
+
+  def test_repeat_subscribe_registers_handler_once
+    log = StringIO.new
+    transport = create_transport(logger: Logger.new(log, level: :debug))
+
+    transport.subscribe(ChatMessage, "ChatMessage.process")
+    transport.subscribe(ChatMessage.to_s, "Other.process")
+
+    assert_equal 1, log.string.scan("Registered handler").size
+    assert_equal [ChatMessage.to_s], transport.instance_variable_get(:@message_handlers).keys
+  end
+
+  def test_class_keyed_unsubscribe_keeps_handler_while_subscribers_remain
+    transport, subscribers = class_subscribed_transport
+    subscribers[ChatMessage.to_s] << { process_method: "Other.process" }
+
+    transport.unsubscribe(ChatMessage, "ChatMessage.process")
+
+    assert transport.instance_variable_get(:@message_handlers).key?(ChatMessage.to_s)
+  end
+
+  def test_class_keyed_unsubscribe_removes_handler_after_last_subscriber
+    transport, = class_subscribed_transport
+
+    transport.unsubscribe(ChatMessage, "ChatMessage.process")
+
+    assert_empty transport.instance_variable_get(:@message_handlers)
+  end
+
+  def test_unsubscribe_bang_unregisters_handler
+    transport, = class_subscribed_transport
+
+    transport.unsubscribe!(ChatMessage)
+
+    assert_empty transport.network_topology[:active_subscriptions]
   end
 
   def test_handle_smart_message_with_no_subscribers
@@ -376,6 +466,21 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
 
   private
 
+  # Stand-in for SmartMessage::Dispatcher, which keys subscribers by
+  # class-name String. Returns the subscribers hash.
+  def stub_dispatcher(transport)
+    subscribers = Hash.new { |h, k| h[k] = [] }
+    transport.instance_variable_set(:@dispatcher, Struct.new(:subscribers).new(subscribers))
+    subscribers
+  end
+
+  def class_subscribed_transport
+    transport = create_transport
+    subscribers = stub_dispatcher(transport)
+    transport.subscribe(ChatMessage, "ChatMessage.process")
+    [transport, subscribers]
+  end
+
   def create_transport(**options)
     SmartMessage::Transport::Lanet.allocate.tap do |transport|
       default_options = {
@@ -392,6 +497,7 @@ class SmartMessage::Transport::TestLanetIntegration < Minitest::Test
       transport.instance_variable_set(:@logger, merged_options[:logger])
       transport.instance_variable_set(:@discovered_nodes, {})
       transport.instance_variable_set(:@node_registry, {})
+      transport.instance_variable_set(:@nodes_mutex, Mutex.new)
       transport.instance_variable_set(:@message_handlers, {})
       transport.instance_variable_set(:@shutdown, false)
 

@@ -27,6 +27,12 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     assert_equal({}, transport.node_registry)
   end
 
+  def test_initialization_without_logger_uses_smart_message_default_logger
+    transport = SmartMessage::Transport::Lanet.new(node_id: "test-node")
+
+    assert_same SmartMessage::Logger.default, transport.logger
+  end
+
   def test_initialization_with_custom_options
     transport = create_transport(
       port: 8888,
@@ -62,6 +68,54 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     refute_nil config[:node_id]
   end
 
+  def test_env_number_uses_default_for_missing_or_blank_value
+    with_env("LANET_TEST_NUMBER" => nil) do
+      assert_equal 30.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+    end
+
+    ["", "  "].each do |blank|
+      with_env("LANET_TEST_NUMBER" => blank) do
+        assert_equal 30.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+        assert_equal 9999, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 9999, :to_i)
+      end
+    end
+  end
+
+  def test_env_number_converts_set_value
+    with_env("LANET_TEST_NUMBER" => "12") do
+      assert_equal 12.0, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 30.0)
+      assert_equal 12, SmartMessage::Transport::Lanet.env_number("LANET_TEST_NUMBER", 9999, :to_i)
+    end
+  end
+
+  def test_env_set_after_require_is_used_by_new_transport
+    with_env("LANET_PORT" => "12345", "LANET_NODE_ID" => "from-env", "LANET_HEARTBEAT_INTERVAL" => "7.5") do
+      transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+
+      assert_equal 12_345, transport.options[:port]
+      assert_equal "from-env", transport.options[:node_id]
+      assert_in_delta 7.5, transport.options[:heartbeat_interval]
+    ensure
+      transport&.disconnect
+    end
+  end
+
+  def test_env_config_reads_env_on_each_call
+    with_env("LANET_PORT" => "2001", "LANET_ENABLE_COMPRESSION" => "true") do
+      config = SmartMessage::Transport::Lanet.env_config
+
+      assert_equal 2001, config[:port]
+      assert config[:enable_compression]
+    end
+
+    with_env("LANET_PORT" => nil, "LANET_NODE_ID" => nil) do
+      config = SmartMessage::Transport::Lanet.env_config
+
+      assert_equal 9999, config[:port]
+      assert_equal Socket.gethostname, config[:node_id]
+    end
+  end
+
   def test_configure_initializes_lanet_components
     transport = create_transport
     mock_sender = Minitest::Mock.new
@@ -76,6 +130,8 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
         assert transport.receiver
       end
     end
+  ensure
+    transport&.disconnect
   end
 
   def test_connected_status_when_not_connected
@@ -294,7 +350,96 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
     transport.send(:handle_incoming_message, message, sender_info)
   end
 
+  def test_new_starts_services_and_keeps_thread_handles
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+
+    assert transport.connected?
+    assert transport.instance_variable_get(:@heartbeat_thread)&.alive?
+  ensure
+    transport&.disconnect
+  end
+
+  def test_connect_when_connected_does_not_start_more_services
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+    discovery = transport.instance_variable_get(:@discovery_thread)
+    heartbeat = transport.instance_variable_get(:@heartbeat_thread)
+    sender = transport.sender
+
+    transport.connect
+
+    assert_same discovery, transport.instance_variable_get(:@discovery_thread)
+    assert_same heartbeat, transport.instance_variable_get(:@heartbeat_thread)
+    assert_same sender, transport.sender
+  ensure
+    transport&.disconnect
+  end
+
+  def test_disconnect_stops_threads_started_by_new
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+    threads = transport.instance_variable_get(:@discovery_thread), transport.instance_variable_get(:@heartbeat_thread)
+
+    transport.disconnect
+    threads.each(&:join)
+
+    refute transport.connected?
+    threads.each { |thread| refute thread.alive? }
+  end
+
+  def test_disconnect_returns_after_threads_have_stopped
+    transport = SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+    threads = transport.instance_variable_get(:@discovery_thread), transport.instance_variable_get(:@heartbeat_thread)
+
+    transport.disconnect
+
+    threads.each { |thread| refute thread.alive? }
+  end
+
+  def test_stop_thread_kills_and_waits_for_thread
+    thread = Thread.new { sleep }
+
+    @transport.send(:stop_thread, thread)
+
+    refute thread.alive?
+  end
+
+  def test_stop_thread_ignores_nil
+    assert_nil @transport.send(:stop_thread, nil)
+  end
+
+  def test_new_reports_lanet_setup_errors
+    ::Lanet::Sender.stub :new, ->(*) { raise "no network" } do
+      error = assert_raises(SmartMessage::Transport::Lanet::Error) do
+        SmartMessage::Transport::Lanet.new(logger: Logger.new(IO::NULL))
+      end
+      assert_match(/no network/, error.message)
+    end
+  end
+
+  def test_connect_after_disconnect_reconnects
+    @transport.connect
+    @transport.disconnect
+    @transport.connect
+
+    assert @transport.connected?
+  end
+
+  def test_configure_after_disconnect_clears_shutdown
+    @transport.connect
+    @transport.disconnect
+    @transport.configure
+
+    assert @transport.connected?
+  end
+
   private
+
+  def with_env(vars)
+    saved = vars.keys.to_h { |key| [key, ENV[key]] }
+    vars.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    saved.each { |key, value| ENV[key] = value }
+  end
 
   def create_transport(**options)
     # Create a basic transport without connecting to avoid needing actual Lanet gems
@@ -313,6 +458,7 @@ class SmartMessage::Transport::TestLanet < Minitest::Test
       transport.instance_variable_set(:@logger, merged_options[:logger])
       transport.instance_variable_set(:@discovered_nodes, {})
       transport.instance_variable_set(:@node_registry, {})
+      transport.instance_variable_set(:@nodes_mutex, Mutex.new)
       transport.instance_variable_set(:@message_handlers, {})
       transport.instance_variable_set(:@shutdown, false)
     end

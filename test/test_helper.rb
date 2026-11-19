@@ -6,24 +6,44 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "smart_message/transport/lanet/version"
 
 require "minitest/autorun"
+require "minitest/mock"
 require "logger"
 require "json"
 require "socket"
-require "ostruct"
 
 # Mock SmartMessage::Transport::Base if not available
 unless defined?(SmartMessage::Transport::Base)
   module SmartMessage
     VERSION = "0.1.0" unless defined?(VERSION)
 
+    # Mirrors smart_message's SmartMessage::Logger module, which has no .new
+    module Logger
+      def self.default
+        @default ||= ::Logger.new(File::NULL)
+      end
+    end
+
     module Transport
       class Base
-        attr_reader :options, :logger
+        attr_reader :options
 
+        # Like smart_message's Base, configure runs inside initialize
         def initialize(**options)
           @options = default_options.merge(options)
-          @logger = @options[:logger] || Logger.new($stdout)
+          configure
         end
+
+        def configure
+          # Mock implementation for testing
+        end
+
+        private
+
+        def logger
+          @logger ||= SmartMessage::Logger.default
+        end
+
+        public
 
         def default_options
           {}
@@ -34,6 +54,10 @@ unless defined?(SmartMessage::Transport::Base)
         end
 
         def unsubscribe(message_class, process_method)
+          # Mock implementation for testing
+        end
+
+        def unsubscribe!(message_class)
           # Mock implementation for testing
         end
 

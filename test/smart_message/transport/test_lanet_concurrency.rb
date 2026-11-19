@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "stringio"
 
 class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
   def setup
@@ -36,7 +37,7 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
     threads.each(&:join)
 
     assert_empty errors, "Expected no errors, got: #{errors}"
-    assert_operator transport.discovered_nodes.count, :>=, 1
+    assert_equal 10, transport.discovered_nodes.count
   end
 
   def test_concurrent_heartbeat_handling
@@ -70,7 +71,30 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
     threads.each(&:join)
 
     assert_empty errors
-    assert_operator transport.node_registry.count, :>=, 1
+    assert_equal 20, transport.node_registry.count
+  end
+
+  def test_node_discovery_while_cleaning_up_stale_nodes
+    log = StringIO.new
+    transport = create_transport(heartbeat_interval: 10.0, logger: Logger.new(log, level: :debug))
+
+    counter = 0
+    sender = Object.new
+    sender.define_singleton_method(:discover_nodes) do |timeout:|
+      Array.new(20) { { node_id: "node#{counter += 1}", ip: "192.168.1.1", port: 9999 } }
+    end
+    transport.instance_variable_set(:@sender, sender)
+
+    stale = Time.now - 100
+    discovered = transport.instance_variable_get(:@discovered_nodes)
+    200.times { |i| discovered["stale#{i}"] = { last_seen: stale } }
+
+    deadline = Time.now + 0.5
+    cleaner = Thread.new { transport.send(:cleanup_stale_nodes) while Time.now < deadline }
+    discoverer = Thread.new { transport.send(:perform_node_discovery) while Time.now < deadline }
+    [cleaner, discoverer].each(&:join)
+
+    refute_match(/Node discovery failed/, log.string)
   end
 
   def test_concurrent_message_handler_registration
@@ -94,7 +118,7 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
 
     assert_empty errors
     handlers = transport.instance_variable_get(:@message_handlers)
-    assert_operator handlers.count, :>=, 1
+    assert_equal 5, handlers.count
   end
 
   def test_concurrent_target_determination
@@ -355,7 +379,8 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
     threads.each(&:join)
 
     assert_empty errors
-    assert_operator read_results.count, :>, 0
+    assert_equal 100, read_results.count
+    assert_equal 51, transport.discovered_nodes.count
   end
 
   def test_stress_test_rapid_heartbeats
@@ -498,6 +523,7 @@ class SmartMessage::Transport::TestLanetConcurrency < Minitest::Test
       transport.instance_variable_set(:@logger, merged_options[:logger])
       transport.instance_variable_set(:@discovered_nodes, {})
       transport.instance_variable_set(:@node_registry, {})
+      transport.instance_variable_set(:@nodes_mutex, Mutex.new)
       transport.instance_variable_set(:@message_handlers, {})
       transport.instance_variable_set(:@shutdown, false)
     end

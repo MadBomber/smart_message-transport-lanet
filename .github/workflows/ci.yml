@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # Rubies the committed Gemfile.lock installs. Only the lock (not the Gemfile) holds
+        # breaker_machines at 0.17.0 (0.18.0+ needs >= 4.0), and the lock lists only the ruby
+        # platform because 0.17.0's precompiled builds need >= 3.4. Keep both when relocking.
+        ruby: ['4.0']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      # Tests only: the default rake task also runs RuboCop, which has pre-existing offenses.
+      - run: bundle exec rake test

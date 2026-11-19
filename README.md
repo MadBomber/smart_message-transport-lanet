@@ -43,9 +43,10 @@ require 'smart_message/transport/lanet'
 
 # Define your message class
 class ChatMessage < SmartMessage::Base
-  attribute :username, :string
-  attribute :message, :string
-  attribute :timestamp, :time
+  from "chat-server-1" # every message header needs a sender
+  property :username
+  property :message
+  property :timestamp
 end
 
 # Configure the transport
@@ -58,10 +59,14 @@ transport = SmartMessage::Transport::Lanet.new(
 # Connect to the network
 transport.connect
 
+# Route messages through this transport (the class-level setting is
+# shared by every SmartMessage::Base subclass)
+ChatMessage.transport(transport)
+
 # Subscribe to messages
-transport.subscribe(ChatMessage, ->(msg) {
+ChatMessage.subscribe do |msg|
   puts "[#{msg.timestamp}] #{msg.username}: #{msg.message}"
-})
+end
 
 # Publish a message
 message = ChatMessage.new(
@@ -111,9 +116,11 @@ export LANET_ENCRYPTION_KEY=my-secret-key
 export LANET_HEARTBEAT_INTERVAL=30.0
 ```
 
+The variables are read each time a transport is created, so values set after the gem is required (for example by `Dotenv.load`) still apply. Options passed to `new` override them.
+
 ### Targeted Messaging
 
-Send messages to specific nodes by including routing information in the message header:
+Send messages to specific nodes by setting the message's `to` address:
 
 ```ruby
 # Send to a specific node
@@ -121,11 +128,11 @@ message = ChatMessage.new(
   username: "alice",
   message: "Private message"
 )
-message.header[:to] = "chat-server-2"
+message.to("chat-server-2")
 transport.publish(message)
 
 # Broadcast to all nodes
-message.header[:to] = "broadcast"
+message.to("broadcast")
 transport.publish(message)
 ```
 
@@ -220,7 +227,8 @@ Node A                  Network                 Node B
 # Server node
 transport = SmartMessage::Transport::Lanet.new(node_id: "chat-server")
 transport.connect
-transport.subscribe(ChatMessage, method(:handle_chat))
+ChatMessage.transport(transport)
+ChatMessage.subscribe(method(:handle_chat))
 ```
 
 ### IoT Sensor Network
@@ -243,7 +251,8 @@ end
 # Collector node (subscribes)
 collector = SmartMessage::Transport::Lanet.new(node_id: "collector")
 collector.connect
-collector.subscribe(SensorReading, method(:store_reading))
+SensorReading.transport(collector)
+SensorReading.subscribe(method(:store_reading))
 ```
 
 ### Distributed Task Processing
@@ -255,7 +264,8 @@ worker = SmartMessage::Transport::Lanet.new(
   capabilities: ["compute", "video-processing"]
 )
 worker.connect
-worker.subscribe(Task, method(:process_task))
+Task.transport(worker)
+Task.subscribe(method(:process_task))
 
 # Coordinator node
 coordinator = SmartMessage::Transport::Lanet.new(node_id: "coordinator")
@@ -286,7 +296,7 @@ The transport handles errors gracefully:
 
 ## Logging
 
-Configure logging through the SmartMessage logger:
+By default the transport logs through `SmartMessage::Logger.default`, so it follows `SmartMessage.configure`. Pass `logger:` to use a different logger:
 
 ```ruby
 transport = SmartMessage::Transport::Lanet.new(
